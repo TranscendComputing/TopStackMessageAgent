@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<project basedir="." name="MessageAgent" default="package" >
+
+    <property name="name" value="MessageAgent" />
+    <property file="${user.home}/${name}.properties"/>
+    <property file="${user.home}/build.properties"/>
+    <property name="config.filename" value="${user.name}.properties"/>
+    <property file="${config.filename}"/>
+    <property file="build.properties"/>
+
+    <property name="project.base.dir" value="." />
+    <property environment="env" />
+    <property name="debuglevel" value="source,lines,vars" />
+    <property file="build.properties" />
+    <property name="src" value="${project.base.dir}/src" />
+    <property name="resources" value="${project.base.dir}/resources" />
+    <property name="test" value="${project.base.dir}/test" />
+    <property name="build" value="${project.base.dir}/build" />
+    <property name="project.lib" value="${project.base.dir}/lib" />
+    <property name="war" value="${build}/war" />
+    <property name="classes" value="${war}/WEB-INF/classes" />
+    <property name="build.dir" location="build" />
+    <property name="classes.dir" location="${build.dir}/classes" />
+    <property name="resources.dir" location="resources" />
+    <property name="dist" value="${project.base.dir}/dist" />
+
+    <property name="hudson.url" value="jenkins.momentumsoftware.com:8080/" />
+
+    <property name="dist.suffix" value="" />
+    <property name="toughresources" value="ToughResources${dist.suffix}" />
+    <property name="toughresources.dir" value="${project.base.dir}/../${toughresources}"/>
+    <import file="${toughresources.dir}/common.build.xml" />
+
+    <!-- package from which to start: this one should work for any modern linux -->
+    <property name="start.package" value="topstack-collectd-5.2.0-ubuntu12.04"/>
+
+    <path id="project.classpath">
+        <pathelement location="${classes.dir}"/>
+    </path>
+
+    <!-- general targets -->
+    <target name="init">
+        <mkdir dir="${build}" />
+        <mkdir dir="${build}/exploded" />
+        <gunzip src="package/${start.package}.tar.gz" dest="${build}"></gunzip>
+        <echo message="Expanding build/${start.package}.tar into ${build}/exploded"/>
+        <!-- Ant tar doesn't respect symlinks, so use OS tar -->
+        <exec executable="tar" failonerror="true">
+            <arg value="xf" />
+            <arg value="${build}/${start.package}.tar" />
+            <arg value="-C" />
+            <arg value="${build}/exploded" />
+        </exec>
+	</target>
+
+    <target name="copy.config" depends="init">
+        <copy todir="${build}/exploded/collectd/etc" overwrite="true">
+            <fileset dir="${resources}/etc">
+            </fileset>
+        </copy>
+    </target>
+
+    <target name="package" depends="init,copy.config">
+        <!--
+        <tar destfile="${build}/transcend-agent.tar.gz" compression="gzip">
+            <tarfileset dir="${build}/exploded" filemode="755" username="root">
+                <include name="collectd/sbin/*" />
+                <include name="collectd/bin/*" />
+            </tarfileset>
+            <tarfileset dir="${build}/exploded" prefix="">
+                <exclude name="collectd/sbin/*" />
+                <exclude name="collectd/bin/*" />
+            </tarfileset>
+         </tar>
+         -->
+        <!-- Ant tar doesn't respect symlinks, so use OS tar -->
+        <chmod dir="${build}/exploded" perm="ugo+rx" includes="collectd/sbin/*"/>
+        <chmod dir="${build}/exploded" perm="ugo+rx" includes="collectd/bin/*"/>
+        <exec executable="tar" failonerror="true">
+            <arg value="czvf" />
+            <arg value="${build}/transcend-agent.tar.gz" />
+            <arg value="-C" />
+            <arg value="${build}/exploded" />
+            <arg value="collectd" />
+        </exec>
+    </target>
+
+    <target name="dist" depends="package">
+        <mkdir dir="${dist}"/>
+        <move file="${build}/transcend-agent.tar.gz" tofile="${dist}/transcend-agent.tar.gz"/>
+    </target>
+</project>
